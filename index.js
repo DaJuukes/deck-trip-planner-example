@@ -6,6 +6,8 @@ data = [
     }
 ]
 
+const token  = "pk.eyJ1IjoiZGFqdXVrZXMiLCJhIjoiY2thcGttNWVyMDczMTJ4bzNyaXB1ampmcCJ9.Uw5wlbUCrKQ0YGHsEiMV8g" // NOTE: This is okay because its a free public key. No harm in leaving it open
+
 let filler = new deck.TripsLayer({
     id: 'trips-layer',
     data,
@@ -22,7 +24,7 @@ let filler = new deck.TripsLayer({
 
 
   let newDeck = new deck.DeckGL({
-  mapboxApiAccessToken: 'pk.eyJ1IjoiZGFqdXVrZXMiLCJhIjoiY2thcGttNWVyMDczMTJ4bzNyaXB1ampmcCJ9.Uw5wlbUCrKQ0YGHsEiMV8g',
+  mapboxApiAccessToken: token,
   mapStyle: 'mapbox://styles/mapbox/light-v9',
   container: 'container',
   initialViewState: {
@@ -80,7 +82,7 @@ let filler = new deck.TripsLayer({
     trailLength: 200,
     currentTime: 100
   });
-  console.log(newLayer)
+
   //find and replace old triplayer
   let oldLayers = arr;
   let newLayers = []
@@ -94,4 +96,69 @@ let filler = new deck.TripsLayer({
       }
   }
   newDeck.setProps({layers: newLayers})
-}
+   }
+
+  function roadSnap(){ 
+    
+    let coordinates = newDeck.props.layers.filter(p => (p.id != 'trips-layer')).map(p => { return p.props.data[0]})
+
+    if (coordinates.length  < 2) return;
+      let coordString = ""
+      let radiusString=""
+
+      for (let i  = 0; i < coordinates.length; i++) {
+          let x = coordinates[i].coordinates
+          if (i != coordinates.length - 1){
+           coordString += x[0] + "," + x[1] + ";"
+           radiusString += "25;"
+         }
+          else {
+              coordString += x[0] + "," + x[1]
+              radiusString += "25"
+          }
+          
+      }
+
+      let query = "https://api.mapbox.com/matching/v5/mapbox/driving/"+ coordString + "?radiuses=" + radiusString + "&access_token=" + token
+
+      const http = new XMLHttpRequest();
+
+      let newCoords = [];
+
+      http.open("GET", query);
+      http.send();
+
+      http.onreadystatechange = (e) => {
+          if (http.readyState == 4 && http.status == 200) {
+
+             if (http.responseText == 'No matching found') return;
+             let resp = JSON.parse(http.responseText)
+             let encoded = resp.matchings[0].geometry;
+             newCoords = L.Polyline.fromEncoded(encoded).getLatLngs();
+
+            let waypoints = []
+
+             for (let x of newCoords) {
+                waypoints.push({ coordinates: [x.lng, x.lat] })
+             }
+
+             let trip = new deck.TripsLayer({
+                id: 'trips-layer',
+                data: [{waypoints}],
+                getPath: d => d.waypoints.map(p => p.coordinates),
+                // deduct start timestamp from each data point to avoid overflow
+                getColor: [253, 128, 93],
+                opacity: 0.8,
+                widthMinPixels: 5,
+                rounded: true,
+                trailLength: 200,
+                currentTime: 100
+              });
+ 
+              newDeck.setProps({layers: [trip]})
+          } 
+      }
+
+    
+  }
+
