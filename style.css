@@ -1,0 +1,49 @@
+.info-box {
+    position: absolute;
+    margin: 20px;
+    width: 25%;
+    top: 0;
+    bottom: 40%;
+    padding: 20px;
+    background-color: rgba(255, 255, 255, 0.9);
+    overflow-y: scroll;
+    font-family: sans-serif;
+    font-size: 0.8em;
+    line-height: 2em;
+  }
+
+  .info-boxd {
+    position: absolute;
+    width: 20%;
+    top: 0;
+    bottom: 90%;
+    padding: 20px;
+    background-color: rgba(255, 255, 255, 0.9);
+    font-family: sans-serif;
+    font-size: 0.8em;
+    line-height: 2em;
+    right: 0
+  }
+
+#route {
+    width: 49%;
+    height: 100%;
+    background-color: lightgreen;
+    font-size: 18pt;
+    font-weight: bold;
+    border-radius: 10px;
+}
+
+#clear {
+    width: 49%;
+    height: 100%;
+    background-color: lightblue;
+    font-size: 18pt;
+    font-weight: bold;
+    border-radius: 10px;
+}
+  
+  #info {
+    font-size: 16px;
+    font-weight: bold;
+  }
