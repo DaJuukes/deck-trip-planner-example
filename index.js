@@ -98,7 +98,7 @@ let filler = new deck.TripsLayer({
   newDeck.setProps({layers: newLayers})
    }
 
-  function roadSnap(){ 
+function roadSnap(){ 
     
     let coordinates = newDeck.props.layers.filter(p => (p.id != 'trips-layer')).map(p => { return p.props.data[0]})
 
