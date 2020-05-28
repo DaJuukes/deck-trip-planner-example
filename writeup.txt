@@ -1,0 +1,17 @@
+This example website was created primarily using Deck.gl and Mapbox. It runs completely client-side using native JavaScript.
+
+The pathfinding algorithm uses Mapbox's free map-matching API, as well as the directions API. The user places any number of points on the map (updating the Map state with new Scatterplot objects) and then traces a TripLayer object through them.
+The data is sent to a API, which returns a new set of coordinate that are road-locked, allowing the program to draw the TripLayer (from Deck.GL) directly on the road. It also provides directions from start to finish.
+
+Animation of the trip-layer is possible, but impractical in this codebase. The design paradigm I decided to build the website with was pure JS and not React, which is more often used for interactive websites of any type.
+I believed that native JS would be easier to work with given the scope of the project, but I now realize that React would have been the better choice.
+
+Notable problems I encountered included the road-fixation and problems with long-distance points. Both of these problems resulted from the library I used, and are pretty complicated to fix as a result.
+Were I to continue to this project, I believe a mathematical solution could fix the errors encountered with long distance points:
+
+Create x many points between Point A and Point B
+Road-lock any points that are able to be locked. The two last points that were able to be locked are now named A' and B'. Repeat process using these two points.
+
+This solution is very computationally intensive and may even go over allowed rate-limits with the API. But I believe it's the optimal solution (barring a large dataset download of road positions).
+
+For all intents and purposes, however, the system works well. Problems with pathfinding can be easily addressed by adding a few extra points in between.

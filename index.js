@@ -1,12 +1,9 @@
-mapboxgl.accessToken = 'pk.eyJ1IjoiZGFqdXVrZXMiLCJhIjoiY2thcGttNWVyMDczMTJ4bzNyaXB1ampmcCJ9.Uw5wlbUCrKQ0YGHsEiMV8g';
 const token  = "pk.eyJ1IjoiZGFqdXVrZXMiLCJhIjoiY2thcGttNWVyMDczMTJ4bzNyaXB1ampmcCJ9.Uw5wlbUCrKQ0YGHsEiMV8g" // NOTE: This is okay because its a free public key. No harm in leaving it open
 
 let filler = new deck.TripsLayer({
     id: 'trips-layer',
     data: [{waypoints:[]}],
     getPath: d => d.waypoints.map(p => p.coordinates),
-    // deduct start timestamp from each data point to avoid overflow
-    getTimestamps: d => d.waypoints.map(p => p.timestamp - 1554772579000),
     getColor: [253, 128, 93],
     opacity: 0.8,
     widthMinPixels: 5,
@@ -67,7 +64,6 @@ let filler = new deck.TripsLayer({
     id: 'trips-layer',
     data: newData,
     getPath: d => d.waypoints.map(p => p.coordinates),
-    // deduct start timestamp from each data point to avoid overflow
     getColor: [253, 128, 93],
     opacity: 0.8,
     widthMinPixels: 5,
@@ -107,7 +103,7 @@ function roadSnap(){
          }
           else {
               coordString += x[0] + "," + x[1]
-              radiusString += "25"
+              radiusString += "50"
           }
           
       }
@@ -126,13 +122,9 @@ function roadSnap(){
 
              
              let resp = JSON.parse(http.responseText)
-             if (resp.message == 'No matching found') {
-                 alert("Route too far offroad - try splitting it up into smaller legs");
+             if (resp.message == 'No matching found' || !resp.matchings[0]) {
+                 alert("Route too far offroad - try splitting it up into smaller legs and avoid road-less areas");
                  return;
-             }
-             else if (!resp.matchings[0]) {
-                alert("Unspecified error - check to make sure the terrain has roads nearby");
-                return;
              }
 
              let encoded = resp.matchings[0].geometry;
@@ -143,13 +135,11 @@ function roadSnap(){
              for (let x of newCoords) {
                 waypoints.push({ coordinates: [x.lng, x.lat] })
              }
-
+             
              let trip = new deck.TripsLayer({
                 id: 'trips-layer',
                 data: [{waypoints}],
                 getPath: d => d.waypoints.map(p => p.coordinates),
-                // deduct start timestamp from each data point to avoid overflow
-                //getTimestamps: d => d.waypoints.map(p => p.timestamp - 1554772579000),
                 getColor: [16, 195, 16],
                 opacity: 2,
                 widthMinPixels: 10,
@@ -205,9 +195,9 @@ function roadSnap(){
     let legs = data.legs
     let tripDirections = []
 
-    for (var i = 0; i < legs.length; i++) {
-        var steps = legs[i].steps;
-        for (var j = 0; j < steps.length; j++) {
+    for (let i = 0; i < legs.length; i++) {
+      let steps = legs[i].steps;
+        for (let j = 0; j < steps.length; j++) {
           tripDirections.push('<br><li>' + steps[j].maneuver.instruction) + '</li>';
         }
       }
