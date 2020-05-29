@@ -1,17 +1,14 @@
-This example website was created primarily using Deck.gl and Mapbox. It runs completely client-side using native JavaScript.
+This is an adapted, 3D proof of concept for a trip visualization map. It utilizes an integration between Deck.gl and Mapbox to provide building data (this took the majority of time 
+to figure out how to work in). Once the buildings were in, I just needed to adapt the Layers code and remove the interactivity. Note: you muust zoom in a fair bit to see the buildings pop up.
 
-The pathfinding algorithm uses Mapbox's free map-matching API, as well as the directions API. The user places any number of points on the map (updating the Map state with new Scatterplot objects) and then traces a TripLayer object through them.
-The data is sent to a API, which returns a new set of coordinate that are road-locked, allowing the program to draw the TripLayer (from Deck.GL) directly on the road. It also provides directions from start to finish.
+The animation is handled by my own code - it uploads the trips' data intoo the layer (along with their timestamps) and incrementally updates the timer by 1 every 100ms. This is what
+causes the flowing on the map - as time gets updated, so does the position of the "car".
 
-Animation of the trip-layer is possible, but impractical in this codebase. The design paradigm I decided to build the website with was pure JS and not React, which is more often used for interactive websites of any type.
-I believed that native JS would be easier to work with given the scope of the project, but I now realize that React would have been the better choice.
+The main problem with this demonstration is the data. Whereas the given deck.gl example had an easy data set (NYC taxi paths), there is no such set that I could find for San Jose. As such,
+I had to randomly generate paths. This is possible using the previous code to get two random points (A,B) in a given range and attempt to path them. However, this runs into numerous issues.
+Primarily, there are a lot of invalid pairs of points that the pathing API will reject. The second issue is the overloading of this API. Requesting more than ~20 paths at a time will cause
+the requests to fail. To work around this, a seperate dataset must be curated by running the program over and over for specific parts of the city. This process would be very tedious and probably
+error-prone due to the data corruption. As such, I decided to showcase one section of San Jose (Campbell) with about 20 trips just as a proof of concept.
 
-Notable problems I encountered included the road-fixation and problems with long-distance points. Both of these problems resulted from the library I used, and are pretty complicated to fix as a result.
-Were I to continue to this project, I believe a mathematical solution could fix the errors encountered with long distance points:
-
-Create x many points between Point A and Point B
-Road-lock any points that are able to be locked. The two last points that were able to be locked are now named A' and B'. Repeat process using these two points.
-
-This solution is very computationally intensive and may even go over allowed rate-limits with the API. But I believe it's the optimal solution (barring a large dataset download of road positions).
-
-For all intents and purposes, however, the system works well. Problems with pathfinding can be easily addressed by adding a few extra points in between.
+Another thing that could be improved with a properly-curated dataset is the erratic speeds of the trips. Currently, they are given a flat 10 units per waypoint, even when the points in 
+question vary wildly in distance. It is possible to normalize this with a distance formula, but since the data is in long/lat, it is impractical to get specific distances.

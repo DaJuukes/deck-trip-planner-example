@@ -1,222 +1,94 @@
 const token  = "pk.eyJ1IjoiZGFqdXVrZXMiLCJhIjoiY2thcGttNWVyMDczMTJ4bzNyaXB1ampmcCJ9.Uw5wlbUCrKQ0YGHsEiMV8g" // NOTE: This is okay because its a free public key. No harm in leaving it open
 
-let filler = new deck.TripsLayer({
-    id: 'trips-layer',
-    data: [{waypoints:[]}],
-    getPath: d => d.waypoints.map(p => p.coordinates),
-    getColor: [253, 128, 93],
-    opacity: 0.8,
-    widthMinPixels: 5,
-    rounded: true,
-    trailLength: 200,
-    currentTime: 100
-  });
-
-
-  let newDeck = new deck.DeckGL({
-  mapboxApiAccessToken: token,
-  mapStyle: 'mapbox://styles/dajuukes/ckapv37b982vd1jnsrkvgf5uf',
-  container: 'container',
-  initialViewState: {
-    longitude: -121.8863,
-    latitude: 37.3382,
-    zoom: 12
-  },
-  controller: true,
-  layers: [
-    filler
-  ],
-  onClick: (info) => {
-      updateMap(info.coordinate[0], info.coordinate[1])
-  }
-   })
-
-
-   function updateMap(long, lat) {
-    let count = newDeck.props.layers.length
-    const layer = new deck.ScatterplotLayer({
-    id: 'scatterplot-layer' + count,
-    data: [{coordinates: [long, lat]}],
-    pickable: true,
-    opacity: 1.2,
-    stroked: true,
-    filled: true,
-    radiusScale: 6,
-    radiusMinPixels: 10,
-    radiusMaxPixels: 100,
-    lineWidthMinPixels: 1,
-    getPosition: d => d.coordinates,
-    getRadius: d => Math.sqrt(d.exits),
-    getFillColor: d => [255, 140, 0],
-    getLineColor: d => [0, 0, 0]
-  });
-    arr = newDeck.props.layers.concat([layer]);
-
-    updateTrips(arr)
-   }
-
-   function updateTrips(layers) {
-    let waypoints = layers.filter(p => (p.id != 'trips-layer')).map(p => { return {coordinates: p.props.data[0]["coordinates"]}})
-
-    let newData = [{waypoints}]
-
-    newLayer = new deck.TripsLayer({
-    id: 'trips-layer',
-    data: newData,
-    getPath: d => d.waypoints.map(p => p.coordinates),
-    getColor: [253, 128, 93],
-    opacity: 0.8,
-    widthMinPixels: 5,
-    rounded: true,
-    trailLength: 200,
-    currentTime: 100
-  });
-
-  //find and replace old triplayer
-  let oldLayers = arr;
-  let newLayers = []
-  for (let i = 0; i < oldLayers.length; i++) {
-      let x = oldLayers[i]
-      
-      if (x.id != 'trips-layer') {
-        newLayers.push(x)
-      } else {
-        newLayers.push(newLayer)
-      }
-  }
-  newDeck.setProps({layers: newLayers})
-   }
-
-function roadSnap(){ 
-    
-    let coordinates = newDeck.props.layers.filter(p => (p.id != 'trips-layer')).map(p => { return p.props.data[0]})
-
-    if (coordinates.length  < 2) return;
-      let coordString = ""
-      let radiusString=""
-
-      for (let i  = 0; i < coordinates.length; i++) {
-          let x = coordinates[i].coordinates
-          if (i != coordinates.length - 1){
-           coordString += x[0] + "," + x[1] + ";"
-           radiusString += "50;"
-         }
-          else {
-              coordString += x[0] + "," + x[1]
-              radiusString += "50"
-          }
-          
-      }
-
-      let query = "https://api.mapbox.com/matching/v5/mapbox/driving/"+ coordString + "?radiuses=" + radiusString + "&steps=true&access_token=" + token
-
-      const http = new XMLHttpRequest();
-
-      let newCoords = [];
-
-      http.open("GET", query);
-      http.send();
-
-      http.onreadystatechange = (e) => {
-          if (http.readyState == 4 && http.status == 200) {
-
-             
-             let resp = JSON.parse(http.responseText)
-             if (resp.message == 'No matching found' || !resp.matchings[0]) {
-                 alert("Route too far offroad - try splitting it up into smaller legs and avoid road-less areas");
-                 return;
-             }
-
-             let encoded = resp.matchings[0].geometry;
-             newCoords = L.Polyline.fromEncoded(encoded).getLatLngs();
-
-            let waypoints = []
-
-             for (let x of newCoords) {
-                waypoints.push({ coordinates: [x.lng, x.lat] })
-             }
-             
-             let trip = new deck.TripsLayer({
-                id: 'trips-layer',
-                data: [{waypoints}],
-                getPath: d => d.waypoints.map(p => p.coordinates),
-                getColor: [16, 195, 16],
-                opacity: 2,
-                widthMinPixels: 10,
-                rounded: true,
-                trailLength: 200,
-                currentTime: 100
-              });
-
-              let startPoint = new deck.ScatterplotLayer({
-                id: 'scatterplot-layer-start',
-                data: [{coordinates: [newCoords[0].lng, newCoords[0].lat]}],
-                pickable: true,
-                opacity: 2,
-                stroked: true,
-                filled: true,
-                radiusScale: 8,
-                radiusMinPixels: 5,
-                radiusMaxPixels: 25,
-                lineWidthMinPixels: 1,
-                getPosition: d => d.coordinates,
-                getRadius: d => Math.sqrt(d.exits),
-                getFillColor: d => [0, 0, 0],
-                getLineColor: d => [0, 0, 0]
-              });
-
-              let endPoint = new deck.ScatterplotLayer({
-                id: 'scatterplot-layer-end',
-                data: [{coordinates: [newCoords[newCoords.length -1].lng, newCoords[newCoords.length -1].lat]}],
-                pickable: true,
-                opacity: 2,
-                stroked: true,
-                filled: true,
-                radiusScale: 8,
-                radiusMinPixels: 5,
-                radiusMaxPixels: 25,
-                lineWidthMinPixels: 1,
-                getPosition: d => d.coordinates,
-                getRadius: d => Math.sqrt(d.exits),
-                getFillColor: d => [0, 0, 0],
-                getLineColor: d => [0, 0, 0]
-              });
- 
-              showDirections(resp.matchings[0])
-              newDeck.setProps({layers: [startPoint, endPoint, trip]})
-          } 
-      }
-
+const EXAMPLE_DATA = {
+    TRIPS: 
+      [{"waypoints":[{"coordinates":[-121.95085,37.26868]},{"coordinates":[-121.95292,37.26871]},{"coordinates":[-121.95348,37.26795]},{"coordinates":[-121.95586,37.26906]},{"coordinates":[-121.95638,37.26916]},{"coordinates":[-121.97225,37.26913]},{"coordinates":[-121.9716,37.2724]},{"coordinates":[-121.971,37.27701]},{"coordinates":[-121.97119,37.27726]},{"coordinates":[-121.97161,37.2774]},{"coordinates":[-121.97595,37.27742]},{"coordinates":[-121.97672,37.27718]},{"coordinates":[-121.97675,37.27809]},{"coordinates":[-121.97634,37.27925]},{"coordinates":[-121.97665,37.28242]},{"coordinates":[-121.97665,37.28491]},{"coordinates":[-121.9798,37.28481]},{"coordinates":[-121.98015,37.28515]}],"timestamps":[0,11.11111111111111,22.22222222222222,33.33333333333333,44.44444444444444,55.55555555555556,66.66666666666666,77.77777777777777,88.88888888888889,100,111.11111111111111,122.22222222222221,133.33333333333331,144.44444444444443,155.55555555555554,166.66666666666666,177.77777777777777,188.88888888888889]},{"waypoints":[{"coordinates":[-121.971,37.2908]},{"coordinates":[-121.97268,37.29077]},{"coordinates":[-121.97274,37.29284]},{"coordinates":[-121.97288,37.29343]},{"coordinates":[-121.97289,37.29391]},{"coordinates":[-121.982,37.29376]},{"coordinates":[-121.98322,37.29348]},{"coordinates":[-121.98402,37.29305]},{"coordinates":[-121.98452,37.29345]},{"coordinates":[-121.98468,37.2937]},{"coordinates":[-121.98658,37.29503]},{"coordinates":[-121.98776,37.2939]},{"coordinates":[-121.98884,37.29304]}],"timestamps":[0,15.384615384615385,30.76923076923077,46.15384615384615,61.53846153846154,76.92307692307692,92.3076923076923,107.6923076923077,123.07692307692308,138.46153846153845,153.84615384615384,169.23076923076923,184.6153846153846]},{"waypoints":[{"coordinates":[-121.9574,37.27628]},{"coordinates":[-121.95843,37.27938]},{"coordinates":[-121.95778,37.27945]},{"coordinates":[-121.95711,37.27991]},{"coordinates":[-121.95997,37.28265]},{"coordinates":[-121.96059,37.28361]},{"coordinates":[-121.96078,37.28459]},{"coordinates":[-121.96039,37.2877]},{"coordinates":[-121.96053,37.29398]},{"coordinates":[-121.96008,37.29417]},{"coordinates":[-121.95846,37.29417]},{"coordinates":[-121.95845,37.29433]},{"coordinates":[-121.95913,37.29433]},{"coordinates":[-121.95911,37.29491]},{"coordinates":[-121.95949,37.29542]},{"coordinates":[-121.95948,37.2959]},{"coordinates":[-121.95855,37.29592]}],"timestamps":[0,11.764705882352942,23.529411764705884,35.294117647058826,47.05882352941177,58.82352941176471,70.58823529411765,82.3529411764706,94.11764705882354,105.88235294117648,117.64705882352942,129.41176470588238,141.1764705882353,152.94117647058823,164.7058823529412,176.47058823529414,188.23529411764707]},{"waypoints":[{"coordinates":[-121.94827,37.26616]},{"coordinates":[-121.94738,37.2681]},{"coordinates":[-121.94607,37.27016]},{"coordinates":[-121.94961,37.27282]},{"coordinates":[-121.9506,37.27324]},{"coordinates":[-121.95288,37.27385]},{"coordinates":[-121.95376,37.27458]},{"coordinates":[-121.95361,37.27497]},{"coordinates":[-121.9532,37.27496]},{"coordinates":[-121.95271,37.27473]},{"coordinates":[-121.95254,37.27439]},{"coordinates":[-121.95407,37.27221]},{"coordinates":[-121.9642,37.27219]},{"coordinates":[-121.96421,37.27359]},{"coordinates":[-121.96515,37.27361]},{"coordinates":[-121.96521,37.2743]},{"coordinates":[-121.97033,37.27408]}],"timestamps":[0,11.764705882352942,23.529411764705884,35.294117647058826,47.05882352941177,58.82352941176471,70.58823529411765,82.3529411764706,94.11764705882354,105.88235294117648,117.64705882352942,129.41176470588238,141.1764705882353,152.94117647058823,164.7058823529412,176.47058823529414,188.23529411764707]},{"waypoints":[{"coordinates":[-121.95328,37.27162]},{"coordinates":[-121.95337,37.27205]},{"coordinates":[-121.95327,37.27243]},{"coordinates":[-121.95179,37.27424]},{"coordinates":[-121.95033,37.27427]},{"coordinates":[-121.95016,37.27421]},{"coordinates":[-121.95006,37.2739]},{"coordinates":[-121.95009,37.27344]},{"coordinates":[-121.95033,37.27332]},{"coordinates":[-121.95126,37.27341]},{"coordinates":[-121.95197,37.27375]},{"coordinates":[-121.95218,37.27413]},{"coordinates":[-121.95207,37.27444]},{"coordinates":[-121.95084,37.276]},{"coordinates":[-121.95071,37.27634]},{"coordinates":[-121.95014,37.27706]},{"coordinates":[-121.94975,37.27779]},{"coordinates":[-121.94977,37.27824]},{"coordinates":[-121.95121,37.27828]},{"coordinates":[-121.95122,37.27919]},{"coordinates":[-121.95142,37.27919]}],"timestamps":[0,9.523809523809524,19.047619047619047,28.57142857142857,38.095238095238095,47.61904761904762,57.14285714285714,66.66666666666667,76.19047619047619,85.71428571428571,95.23809523809524,104.76190476190476,114.28571428571428,123.80952380952381,133.33333333333334,142.85714285714286,152.38095238095238,161.9047619047619,171.42857142857142,180.95238095238096,190.47619047619048]},{"waypoints":[{"coordinates":[-121.97856,37.28184]},{"coordinates":[-121.97842,37.27989]},{"coordinates":[-121.97738,37.27983]},{"coordinates":[-121.97724,37.27896]},{"coordinates":[-121.97705,37.27861]},{"coordinates":[-121.97666,37.27839]},{"coordinates":[-121.97676,37.27779]},{"coordinates":[-121.9765,37.27387]},{"coordinates":[-121.97394,37.27408]},{"coordinates":[-121.97139,37.27408]},{"coordinates":[-121.97225,37.26913]},{"coordinates":[-121.95623,37.26914]}],"timestamps":[0,16.666666666666668,33.333333333333336,50,66.66666666666667,83.33333333333334,100,116.66666666666667,133.33333333333334,150,166.66666666666669,183.33333333333334]},{"waypoints":[{"coordinates":[-121.96635,37.2775]},{"coordinates":[-121.96635,37.27563]},{"coordinates":[-121.96422,37.27564]},{"coordinates":[-121.96421,37.27413]}],"timestamps":[0,50,100,150]},{"waypoints":[{"coordinates":[-121.96279,37.27801]},{"coordinates":[-121.96331,37.27818]},{"coordinates":[-121.96345,37.2793]},{"coordinates":[-121.96197,37.28425]},{"coordinates":[-121.96414,37.28422]},{"coordinates":[-121.96419,37.28685]},{"coordinates":[-121.96394,37.28687]},{"coordinates":[-121.96395,37.28829]},{"coordinates":[-121.9629,37.28828]},{"coordinates":[-121.96307,37.29235]},{"coordinates":[-121.96701,37.29231]}],"timestamps":[0,18.181818181818183,36.36363636363637,54.54545454545455,72.72727272727273,90.90909090909092,109.0909090909091,127.27272727272728,145.45454545454547,163.63636363636365,181.81818181818184]},{"waypoints":[{"coordinates":[-121.94563,37.27114]},{"coordinates":[-121.94631,37.27113]},{"coordinates":[-121.94595,37.27057]},{"coordinates":[-121.94607,37.27016]},{"coordinates":[-121.94961,37.27282]},{"coordinates":[-121.95182,37.27366]},{"coordinates":[-121.95218,37.27413]},{"coordinates":[-121.94975,37.27779]},{"coordinates":[-121.94983,37.28488]},{"coordinates":[-121.94745,37.28488]}],"timestamps":[0,20,40,60,80,100,120,140,160,180]},{"waypoints":[{"coordinates":[-121.94364,37.28465]},{"coordinates":[-121.94182,37.28705]},{"coordinates":[-121.93536,37.28708]},{"coordinates":[-121.93581,37.27958]},{"coordinates":[-121.93388,37.27477]},{"coordinates":[-121.93652,37.27162]}],"timestamps":[0,33.333333333333336,66.66666666666667,100,133.33333333333334,166.66666666666669]},{"waypoints":[{"coordinates":[-121.98757,37.28706]},{"coordinates":[-121.9874,37.28662]},{"coordinates":[-121.98737,37.28465]},{"coordinates":[-121.98759,37.28436]},{"coordinates":[-121.98796,37.28417]},{"coordinates":[-121.9881,37.284]},{"coordinates":[-121.9881,37.28337]},{"coordinates":[-121.99019,37.28333]},{"coordinates":[-121.99002,37.28122]}],"timestamps":[0,22.22222222222222,44.44444444444444,66.66666666666666,88.88888888888889,111.11111111111111,133.33333333333331,155.55555555555554,177.77777777777777]},{"waypoints":[{"coordinates":[-121.96609,37.26993]},{"coordinates":[-121.96607,37.26917]},{"coordinates":[-121.95623,37.26914]},{"coordinates":[-121.94979,37.27763]},{"coordinates":[-121.94984,37.29842]},{"coordinates":[-121.94898,37.29846]},{"coordinates":[-121.94876,37.29971]}],"timestamps":[0,28.571428571428573,57.142857142857146,85.71428571428572,114.28571428571429,142.85714285714286,171.42857142857144]},{"waypoints":[{"coordinates":[-121.98582,37.27013]},{"coordinates":[-121.98122,37.2712]},{"coordinates":[-121.97645,37.27169]},{"coordinates":[-121.97676,37.27792]},{"coordinates":[-121.97634,37.27925]},{"coordinates":[-121.97662,37.28608]},{"coordinates":[-121.96856,37.28638]},{"coordinates":[-121.96394,37.28687]},{"coordinates":[-121.94978,37.28703]},{"coordinates":[-121.94984,37.2939]},{"coordinates":[-121.94952,37.29418]},{"coordinates":[-121.94357,37.29422]},{"coordinates":[-121.94356,37.29795]}],"timestamps":[0,15.384615384615385,30.76923076923077,46.15384615384615,61.53846153846154,76.92307692307692,92.3076923076923,107.6923076923077,123.07692307692308,138.46153846153845,153.84615384615384,169.23076923076923,184.6153846153846]},{"waypoints":[{"coordinates":[-121.97789,37.27655]},{"coordinates":[-121.97671,37.27659]},{"coordinates":[-121.97672,37.27718]},{"coordinates":[-121.97595,37.27742]},{"coordinates":[-121.97161,37.2774]},{"coordinates":[-121.97119,37.27726]},{"coordinates":[-121.971,37.27701]},{"coordinates":[-121.97116,37.27561]},{"coordinates":[-121.96422,37.27564]},{"coordinates":[-121.96425,37.27874]},{"coordinates":[-121.96406,37.27898]},{"coordinates":[-121.96355,37.2792]},{"coordinates":[-121.95795,37.2794]},{"coordinates":[-121.95602,37.28064]},{"coordinates":[-121.94978,37.28069]},{"coordinates":[-121.9498,37.28196]},{"coordinates":[-121.94677,37.28196]}],"timestamps":[0,11.764705882352942,23.529411764705884,35.294117647058826,47.05882352941177,58.82352941176471,70.58823529411765,82.3529411764706,94.11764705882354,105.88235294117648,117.64705882352942,129.41176470588238,141.1764705882353,152.94117647058823,164.7058823529412,176.47058823529414,188.23529411764707]},{"waypoints":[{"coordinates":[-121.96305,37.29164]},{"coordinates":[-121.9629,37.28828]},{"coordinates":[-121.96395,37.28829]},{"coordinates":[-121.96394,37.28687]},{"coordinates":[-121.96177,37.28691]},{"coordinates":[-121.96194,37.284]},{"coordinates":[-121.96343,37.27922]},{"coordinates":[-121.96425,37.27874]},{"coordinates":[-121.96422,37.27564]},{"coordinates":[-121.97116,37.27561]},{"coordinates":[-121.97217,37.26959]}],"timestamps":[0,18.181818181818183,36.36363636363637,54.54545454545455,72.72727272727273,90.90909090909092,109.0909090909091,127.27272727272728,145.45454545454547,163.63636363636365,181.81818181818184]},{"waypoints":[{"coordinates":[-121.9652,37.28125]},{"coordinates":[-121.96514,37.28197]},{"coordinates":[-121.96259,37.28199]},{"coordinates":[-121.96194,37.284]},{"coordinates":[-121.96202,37.28467]},{"coordinates":[-121.96177,37.28691]},{"coordinates":[-121.96049,37.28698]},{"coordinates":[-121.96037,37.28859]},{"coordinates":[-121.9605,37.29405]},{"coordinates":[-121.96008,37.29417]},{"coordinates":[-121.95444,37.29422]},{"coordinates":[-121.95443,37.29689]},{"coordinates":[-121.95146,37.29686]}],"timestamps":[0,15.384615384615385,30.76923076923077,46.15384615384615,61.53846153846154,76.92307692307692,92.3076923076923,107.6923076923077,123.07692307692308,138.46153846153845,153.84615384615384,169.23076923076923,184.6153846153846]},{"waypoints":[{"coordinates":[-121.99005,37.2897]},{"coordinates":[-121.98847,37.28861]},{"coordinates":[-121.98824,37.28881]},{"coordinates":[-121.98568,37.28693]},{"coordinates":[-121.98441,37.28633]},{"coordinates":[-121.98451,37.28582]},{"coordinates":[-121.98443,37.28431]},{"coordinates":[-121.98455,37.28345]},{"coordinates":[-121.98594,37.28341]},{"coordinates":[-121.98585,37.28091]}],"timestamps":[0,20,40,60,80,100,120,140,160,180]},{"waypoints":[{"coordinates":[-121.97421,37.27001]},{"coordinates":[-121.97206,37.27023]},{"coordinates":[-121.97116,37.27561]},{"coordinates":[-121.96422,37.27564]},{"coordinates":[-121.96425,37.27874]},{"coordinates":[-121.96406,37.27898]},{"coordinates":[-121.96328,37.27924]},{"coordinates":[-121.95795,37.2794]},{"coordinates":[-121.95711,37.27991]},{"coordinates":[-121.95997,37.28265]},{"coordinates":[-121.96059,37.28361]},{"coordinates":[-121.96078,37.28459]},{"coordinates":[-121.96057,37.28647]},{"coordinates":[-121.96037,37.28687]},{"coordinates":[-121.95739,37.28703]},{"coordinates":[-121.9574,37.28606]}],"timestamps":[0,12.5,25,37.5,50,62.5,75,87.5,100,112.5,125,137.5,150,162.5,175,187.5]},{"waypoints":[{"coordinates":[-121.99151,37.29291]},{"coordinates":[-121.99139,37.29277]},{"coordinates":[-121.99188,37.29236]},{"coordinates":[-121.99164,37.29218]},{"coordinates":[-121.99225,37.29164]},{"coordinates":[-121.99021,37.29011]},{"coordinates":[-121.98865,37.289]},{"coordinates":[-121.9883,37.28885]},{"coordinates":[-121.98568,37.28693]},{"coordinates":[-121.98441,37.28633]},{"coordinates":[-121.98451,37.28582]},{"coordinates":[-121.98443,37.28431]},{"coordinates":[-121.98455,37.28345]},{"coordinates":[-121.98594,37.28341]},{"coordinates":[-121.9859,37.28265]},{"coordinates":[-121.9837,37.28275]},{"coordinates":[-121.98327,37.28271]}],"timestamps":[0,11.764705882352942,23.529411764705884,35.294117647058826,47.05882352941177,58.82352941176471,70.58823529411765,82.3529411764706,94.11764705882354,105.88235294117648,117.64705882352942,129.41176470588238,141.1764705882353,152.94117647058823,164.7058823529412,176.47058823529414,188.23529411764707]},{"waypoints":[{"coordinates":[-121.93659,37.26564]},{"coordinates":[-121.93866,37.26563]},{"coordinates":[-121.93965,37.26619]},{"coordinates":[-121.94018,37.2656]},{"coordinates":[-121.94961,37.27282]},{"coordinates":[-121.95374,37.27434]},{"coordinates":[-121.95474,37.27554]},{"coordinates":[-121.95593,37.27872]},{"coordinates":[-121.96028,37.28306]},{"coordinates":[-121.96078,37.28459]},{"coordinates":[-121.96039,37.2877]},{"coordinates":[-121.96053,37.29398]},{"coordinates":[-121.95846,37.29417]},{"coordinates":[-121.95913,37.29433]},{"coordinates":[-121.95948,37.2959]},{"coordinates":[-121.95653,37.29593]}],"timestamps":[0,12.5,25,37.5,50,62.5,75,87.5,100,112.5,125,137.5,150,162.5,175,187.5]},{"waypoints":[{"coordinates":[-121.96944,37.27792]},{"coordinates":[-121.96914,37.27783]},{"coordinates":[-121.96871,37.27783]},{"coordinates":[-121.96822,37.27794]},{"coordinates":[-121.96705,37.27841]},{"coordinates":[-121.96611,37.27857]},{"coordinates":[-121.96526,37.27915]},{"coordinates":[-121.96437,37.27945]},{"coordinates":[-121.96421,37.2797]},{"coordinates":[-121.96433,37.28113]},{"coordinates":[-121.96418,37.28126]},{"coordinates":[-121.96282,37.28126]},{"coordinates":[-121.96343,37.27922]},{"coordinates":[-121.95795,37.2794]},{"coordinates":[-121.95764,37.27951]},{"coordinates":[-121.95625,37.28058]},{"coordinates":[-121.95576,37.28066]},{"coordinates":[-121.95422,37.28068]},{"coordinates":[-121.95427,37.28265]},{"coordinates":[-121.95146,37.28266]}],"timestamps":[0,10,20,30,40,50,60,70,80,90,100,110,120,130,140,150,160,170,180,190]},{"waypoints":[{"coordinates":[-121.93602,37.29717]},{"coordinates":[-121.93444,37.29717]},{"coordinates":[-121.93381,37.2977]},{"coordinates":[-121.933,37.29712]},{"coordinates":[-121.93222,37.29786]},{"coordinates":[-121.93196,37.29792]},{"coordinates":[-121.93177,37.29776]},{"coordinates":[-121.93182,37.28728]},{"coordinates":[-121.93238,37.28708]},{"coordinates":[-121.94182,37.28705]},{"coordinates":[-121.94472,37.28332]}],"timestamps":[0,18.181818181818183,36.36363636363637,54.54545454545455,72.72727272727273,90.90909090909092,109.0909090909091,127.27272727272728,145.45454545454547,163.63636363636365,181.81818181818184]},{"waypoints":[{"coordinates":[-121.97669,37.2977]},{"coordinates":[-121.97663,37.29375]},{"coordinates":[-121.9685,37.29406]},{"coordinates":[-121.96095,37.29402]},{"coordinates":[-121.96056,37.28864]},{"coordinates":[-121.96098,37.28461]},{"coordinates":[-121.96077,37.28358]},{"coordinates":[-121.96012,37.28254]},{"coordinates":[-121.95605,37.2786]},{"coordinates":[-121.95491,37.2755]},{"coordinates":[-121.95356,37.27406]},{"coordinates":[-121.94993,37.27284]},{"coordinates":[-121.94612,37.26997]},{"coordinates":[-121.94595,37.27057]},{"coordinates":[-121.94649,37.27143]},{"coordinates":[-121.94639,37.2721]},{"coordinates":[-121.94597,37.27249]},{"coordinates":[-121.94516,37.27252]},{"coordinates":[-121.94518,37.2751]},{"coordinates":[-121.94314,37.27586]},{"coordinates":[-121.94235,37.27665]}],"timestamps":[0,9.523809523809524,19.047619047619047,28.57142857142857,38.095238095238095,47.61904761904762,57.14285714285714,66.66666666666667,76.19047619047619,85.71428571428571,95.23809523809524,104.76190476190476,114.28571428571428,123.80952380952381,133.33333333333334,142.85714285714286,152.38095238095238,161.9047619047619,171.42857142857142,180.95238095238096,190.47619047619048]},{"waypoints":[{"coordinates":[-121.97343,37.26899]},{"coordinates":[-121.97211,37.26915]},{"coordinates":[-121.97104,37.26915]},{"coordinates":[-121.97103,37.26965]},{"coordinates":[-121.97096,37.27002]},{"coordinates":[-121.97086,37.27132]},{"coordinates":[-121.96902,37.27132]}],"timestamps":[0,28.571428571428573,57.142857142857146,85.71428571428572,114.28571428571429,142.85714285714286,171.42857142857144]},{"waypoints":[{"coordinates":[-121.94358,37.29319]},{"coordinates":[-121.9436,37.2906]},{"coordinates":[-121.944,37.29059]},{"coordinates":[-121.94456,37.29069]},{"coordinates":[-121.95635,37.29062]}],"timestamps":[0,40,80,120,160]},{"waypoints":[{"coordinates":[-121.96157,37.29735]},{"coordinates":[-121.96109,37.2963]},{"coordinates":[-121.96089,37.29527]},{"coordinates":[-121.96056,37.28864]},{"coordinates":[-121.96072,37.28697]},{"coordinates":[-121.95886,37.28703]},{"coordinates":[-121.955,37.28699]},{"coordinates":[-121.94046,37.28708]}],"timestamps":[0,25,50,75,100,125,150,175]},{"waypoints":[{"coordinates":[-121.94708,37.2924]},{"coordinates":[-121.94708,37.29126]},{"coordinates":[-121.94727,37.29091]},{"coordinates":[-121.94728,37.29068]},{"coordinates":[-121.94729,37.28787]},{"coordinates":[-121.94771,37.28776]},{"coordinates":[-121.94846,37.28725]},{"coordinates":[-121.94894,37.28713]},{"coordinates":[-121.95511,37.28703]},{"coordinates":[-121.95886,37.28703]},{"coordinates":[-121.96048,37.28711]},{"coordinates":[-121.96278,37.28696]},{"coordinates":[-121.96294,37.2869]},{"coordinates":[-121.96339,37.28349]},{"coordinates":[-121.96428,37.28348]}],"timestamps":[0,13.333333333333334,26.666666666666668,40,53.333333333333336,66.66666666666667,80,93.33333333333334,106.66666666666667,120,133.33333333333334,146.66666666666669,160,173.33333333333334,186.66666666666669]},{"waypoints":[{"coordinates":[-121.97482,37.26802]},{"coordinates":[-121.97498,37.26881]},{"coordinates":[-121.97558,37.26877]},{"coordinates":[-121.97675,37.26889]},{"coordinates":[-121.97706,37.26887]},{"coordinates":[-121.98217,37.26789]},{"coordinates":[-121.98211,37.26773]}],"timestamps":[0,28.571428571428573,57.142857142857146,85.71428571428572,114.28571428571429,142.85714285714286,171.42857142857144]},{"waypoints":[{"coordinates":[-121.95738,37.27222]},{"coordinates":[-121.9574,37.27628]},{"coordinates":[-121.95843,37.27938]},{"coordinates":[-121.96343,37.27922]},{"coordinates":[-121.96259,37.28199]},{"coordinates":[-121.9766,37.28185]},{"coordinates":[-121.97664,37.2836]}],"timestamps":[0,28.571428571428573,57.142857142857146,85.71428571428572,114.28571428571429,142.85714285714286,171.42857142857144]},{"waypoints":[{"coordinates":[-121.95974,37.2889]},{"coordinates":[-121.95975,37.28903]},{"coordinates":[-121.9593,37.28903]},{"coordinates":[-121.95934,37.29061]},{"coordinates":[-121.94988,37.29067]},{"coordinates":[-121.94982,37.29077]},{"coordinates":[-121.94989,37.29097]},{"coordinates":[-121.94991,37.2934]},{"coordinates":[-121.94985,37.29348]},{"coordinates":[-121.94983,37.29418]},{"coordinates":[-121.94984,37.29842]},{"coordinates":[-121.94898,37.29846]}],"timestamps":[0,16.666666666666668,33.333333333333336,50,66.66666666666667,83.33333333333334,100,116.66666666666667,133.33333333333334,150,166.66666666666669,183.33333333333334]}]
     
   }
 
-  function showDirections(data) {
-    let directions = document.getElementById('directions');
-    let legs = data.legs
-    let tripDirections = []
 
-    for (let i = 0; i < legs.length; i++) {
-      let steps = legs[i].steps;
-        for (let j = 0; j < steps.length; j++) {
-          tripDirections.push('<br><li>' + steps[j].maneuver.instruction) + '</li>';
+mapboxgl.accessToken = token
+const map = new mapboxgl.Map({
+    container: 'container',
+    style: 'mapbox://styles/dajuukes/ckapv37b982vd1jnsrkvgf5uf',
+    center: [-121.8863, 37.3382],
+    zoom: 15,
+    pitch: 60
+  });
+
+const {Deck, TripsLayer,  MapboxLayer} = deck
+let tripL = new MapboxLayer({
+  type: deck.TripsLayer,
+  id: 'trips',
+  data: EXAMPLE_DATA.TRIPS,
+  getPath: d => d.waypoints.map(p => p.coordinates),
+  getTimestamps: d => d.timestamps,
+  opacity: 1,
+  widthMinPixels: 5,
+  rounded: true,
+  trailLength: 20,
+  currentTime: 10,
+  shadowEnabled: false
+})
+
+
+
+// wait for map to be ready
+map.on('load', () => {
+    var layers = map.getStyle().layers;
+
+    var labelLayerId;
+    for (var i = 0; i < layers.length; i++) {
+        if (layers[i].type === 'symbol' && layers[i].layout['text-field']) {
+            labelLayerId = layers[i].id;
+            break;
         }
-      }
-      directions.innerHTML = '<br><h2>Trip duration: ' + Math.floor(data.duration / 60) + ' min.</h2>' + tripDirections;
-  }
+    }
 
-  function clearMap() {
-    newDeck.setProps({layers: [new deck.TripsLayer({
-        id: 'trips-layer',
-        data: [{waypoints:[]}],
-        getPath: d => d.waypoints.map(p => p.coordinates),
-        // deduct start timestamp from each data point to avoid overflow
-        getColor: [253, 128, 93],
-        opacity: 0.8,
-        widthMinPixels: 5,
-        rounded: true,
-        trailLength: 200,
-        currentTime: 100
-      })]})
-      document.getElementById('directions').innerHTML = ""
-  }
+    map.addLayer(tripL)
+
+    setInterval(animate, 100)
+
+    map.addLayer(
+        {
+            'id': '3d-buildings',
+            'source': 'composite',
+            'source-layer': 'building',
+            'filter': ['==', 'extrude', 'true'],
+            'type': 'fill-extrusion',
+            'minzoom': 15,
+            'paint': {
+                'fill-extrusion-color': '#aaa',
+
+                // use an 'interpolate' expression to add a smooth transition effect to the
+                // buildings as the user zooms in
+                'fill-extrusion-height': [
+                    'interpolate',
+                    ['linear'],
+                    ['zoom'],
+                    15,
+                    0,
+                    15.05,
+                    ['get', 'height']
+                ],
+                'fill-extrusion-base': [
+                    'interpolate',
+                    ['linear'],
+                    ['zoom'],
+                    15,
+                    0,
+                    15.05,
+                    ['get', 'min_height']
+                ],
+                'fill-extrusion-opacity': 0.6
+            }
+        },
+        labelLayerId
+    );
+})
+
+function animate() {
+  tripL.setProps({currentTime: ((map.__deck.props.layers[0].props.currentTime) + 1) % 200})
+}
+
 
